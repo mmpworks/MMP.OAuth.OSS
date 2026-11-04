@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = ["crates/mmp-secret", "crates/mmp-quota", "crates/mmp-oauth"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.94"
+license = "MIT"
+authors = ["MMPWorks LLC"]
+repository = "https://github.com/mmpworks/MMP.OAuth.OSS"
+
+# Versions verified live 2026-06-23 (see docs/design/RESEARCH-FINDINGS.md).
+# oauth2 5.0.0 is the RFC-complete base client. The provider, storage and flow code
+# sits on top of it in mmp-oauth. Workspace dependencies cannot be optional, so each
+# crate declares its own optional dependencies; this table sets the version floor.
+[workspace.dependencies]
+# mmp-secret: the redacting secret string. A separate leaf crate, so any crate that
+# holds a credential can use it without depending on mmp-oauth.
+mmp-secret = { path = "crates/mmp-secret" }
+# mmp-quota: the sliding-window request-budget calculator. It answers "how many
+# requests may I make now" under a rolling per-window quota (for example Gmail's
+# per-user limit). Any client of a rate-limited API can use it.
+mmp-quota = { path = "crates/mmp-quota" }
+oauth2 = { version = "5.0", default-features = false }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+url = "2"
+async-trait = "0.1"
+serde_json = "1"
+zeroize = { version = "1", features = ["derive"] }
+keyring = "4.1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tiny_http = "0.12"
+# rt-multi-thread is needed by the loopback receiver: it offloads the blocking
+# tiny_http accept onto the blocking pool via spawn_blocking, which a multi-thread
+# runtime drives. The testbed binary's #[tokio::main] also defaults to it.
+tokio = { version = "1", features = ["sync", "time", "rt", "rt-multi-thread", "macros"] }
+
+# cargo-bolero builds fuzz targets with this profile. Optimized, with overflow checks
+# and debug assertions on, so an arithmetic overflow is a crash the fuzzer finds.
+[profile.fuzz]
+inherits = "dev"
+opt-level = 3
+debug-assertions = true
+overflow-checks = true
+incremental = false

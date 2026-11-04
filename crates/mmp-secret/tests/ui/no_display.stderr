@@ -1,0 +1,9 @@
+error[E0277]: `Secret` doesn't implement `std::fmt::Display`
+ --> tests/ui/no_display.rs:4:22
+  |
+4 |     let _ = format!("{secret}");
+  |                      ^^^^^^^^ `Secret` cannot be formatted with the default formatter
+  |
+  = help: the trait `std::fmt::Display` is not implemented for `Secret`
+  = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+  = note: this error originates in the macro `$crate::__export::format_args` which comes from the expansion of the macro `format` (in Nightly builds, run with -Z macro-backtrace for more info)

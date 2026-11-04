@@ -1,0 +1,101 @@
+[package]
+name = "mmp-oauth"
+version = "0.1.0"
+description = "Desktop OAuth 2.0 client on oauth2 5.0: provider profiles, PKCE loopback flow, token storage, and automatic refresh behind four verbs."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+# docs.rs builds with every public feature, so the published docs show the gated
+# types. `fuzzing` is left out: its module is hidden and carries no semver promise.
+[package.metadata.docs.rs]
+features = ["reqwest-transport", "loopback-flow", "keyring-store", "testbed"]
+
+[features]
+# The default build is the pure core: traits, the token state machine, and the mock
+# provider. It has no network, no OS keystore, and no async runtime, so the whole
+# OAuth flow is deterministic in tests. The host supplies the real edges.
+default = []
+
+# `reqwest-transport`: the production HttpTransport over reqwest, plus the Google and
+# Microsoft provider adapters, which drive `oauth2` over this transport. It turns on
+# the `reqwest` integration in `oauth2`, so `reqwest::Client` implements
+# `oauth2::AsyncHttpClient`.
+reqwest-transport = ["dep:reqwest", "tokio/rt", "tokio/rt-multi-thread", "tokio/time", "tokio/macros", "oauth2/reqwest"]
+# `loopback-flow`: the production desktop loopback RedirectReceiver (tiny_http).
+# It also pulls in serde_json, because the testbed web UI (which needs this feature
+# and `reqwest-transport`) sends JSON to the browser over the same tiny_http server.
+loopback-flow = ["dep:tiny_http", "tokio/rt", "tokio/rt-multi-thread", "tokio/time", "tokio/macros", "dep:serde_json"]
+# `keyring-store`: a cross-platform TokenStore over the OS keystore. A host with its
+# own encrypted store leaves this off and implements TokenStore itself.
+keyring-store = ["dep:keyring", "dep:keyring-core", "dep:serde_json", "dep:zeroize"]
+# `testbed`: the `testbed` module (app-config files and the local web UI) and,
+# with the two production features, the `oauth_testbed` binary. It is a developer
+# tool, so it is off by default and outside the library's stable surface.
+testbed = []
+# `fuzzing`: exposes the hidden `__fuzz` module so the fuzz and property harnesses
+# can call private parsers. It is not part of the public API and has no semver
+# promise. Never enable it in a release build.
+fuzzing = ["dep:serde_json"]
+
+[dependencies]
+# The redacting-secret leaf crate. mmp-oauth re-exports its `Secret` as
+# `mmp_oauth::Secret`. The `keyring-store` feature also uses zeroize directly, for one buffer.
+mmp-secret.workspace = true
+oauth2.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+url.workspace = true
+async-trait.workspace = true
+
+reqwest = { workspace = true, optional = true }
+# tokio is not optional. The single-flight refresh in `access_token` (one refresh per
+# account at a time) uses `tokio::sync::Mutex`, which needs only the `sync` feature and
+# no runtime. The transport and loopback features add the runtime features (`rt`,
+# `time`, `macros`). The default build therefore pulls in no runtime.
+tokio = { workspace = true }
+tiny_http = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+keyring = { workspace = true, optional = true }
+# keyring-core is already a dependency of keyring. It is named here for its
+# `Entry` and `CredentialStore` types, so a host or a test can pass a specific
+# credential store (keyring-core's in-memory mock store in the tests).
+keyring-core = { version = "1.0", optional = true }
+# zeroize clears the keystore buffer that holds the token record.
+zeroize = { workspace = true, optional = true }
+
+# The live testbed binary needs the real HTTP transport + the loopback edges, so it
+# is gated on both prod features. The default-feature (pure-core) build skips it.
+[[bin]]
+name = "oauth_testbed"
+required-features = ["reqwest-transport", "loopback-flow", "testbed"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+wiremock = "0.6"
+# Property-based tests (dev-only, no runtime dependency). Pinned exact so a case
+# count reported in a PR maps to one generator version.
+proptest = "=1.12.0"
+serde_json = "1"
+# Fuzz harnesses (dev-only). Each `bolero::check!()` target runs on random input
+# under a plain `cargo test`, and under libFuzzer with `cargo bolero test`. Pinned
+# exact for the same reason as proptest.
+bolero = "=0.13.7"
+# The PKCE scenario tests recompute the S256 challenge (RFC 7636 section 4.6).
+sha2 = "=0.10.9"
+base64 = "=0.22.1"
+
+[[test]]
+name = "fuzz_redirect_query"
+required-features = ["fuzzing", "loopback-flow"]
+
+[[test]]
+name = "fuzz_token_body"
+required-features = ["fuzzing", "reqwest-transport"]
+
+[[example]]
+name = "google_loopback"
+required-features = ["reqwest-transport", "loopback-flow"]

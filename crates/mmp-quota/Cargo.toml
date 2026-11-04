@@ -1,0 +1,18 @@
+[package]
+name = "mmp-quota"
+version = "0.1.0"
+description = "A sliding-window request-budget calculator: how many requests fit now under a per-window quota, and how long to wait for more."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+# No dependencies on purpose. The calculator is arithmetic over a millisecond time
+# value that the caller passes in. The caller owns the clock and any sleeping, so the
+# crate needs no clock, no async runtime, and no network.
+[dependencies]
+
+[dev-dependencies]
+bolero = "=0.13.7"

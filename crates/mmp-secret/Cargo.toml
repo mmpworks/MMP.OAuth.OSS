@@ -1,0 +1,30 @@
+[package]
+name = "mmp-secret"
+version = "0.1.0"
+description = "A secret string with a redacting Debug that zeroizes its memory on drop."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+# The crate has no serde support on purpose. A Serialize implementation on a secret
+# would let any serde-aware logger or tracer write the plain text, which defeats the
+# redacting Debug. Code that must persist a Secret calls `Secret::expose` at its one
+# storage site (see the TokenStore implementations in mmp-oauth).
+default = []
+
+[dependencies]
+# The `derive` feature is set here, not in the workspace table, so the crate builds
+# on its own. Without it, #[derive(Zeroize, ZeroizeOnDrop)] fails with "cannot find
+# derive macro".
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+# The compile-fail tests (tests/compile_fail.rs) prove that Secret has no Display
+# and no serde Serialize. trybuild is pinned at 1.0.110, which resolves beside
+# bolero in this workspace.
+serde = "=1.0.228"
+trybuild = "=1.0.110"
