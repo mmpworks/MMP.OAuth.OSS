@@ -1,4 +1,4 @@
-# MMP.OAuth
+# MMP.OAuth.OSS
 
 A small OAuth 2.0 client for Rust desktop applications. It turns a user's consent into an access token that refreshes itself, through four methods.
 
